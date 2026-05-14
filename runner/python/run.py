@@ -26,8 +26,11 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
-ROOT = Path(__file__).resolve().parents[2]
-VECTORS = ROOT / "vectors"
+_DEFAULT_ROOT = Path(__file__).resolve().parents[2]
+_DEFAULT_VECTORS = _DEFAULT_ROOT / "vectors"
+
+# Module-level VECTORS is mutated by main() if --vectors-dir is passed.
+VECTORS = _DEFAULT_VECTORS
 
 # ----- vector loading ------------------------------------------------------
 
@@ -104,10 +107,57 @@ def dispatch_parse_should_reject(impl, vec: dict) -> TestResult:
     return TestResult(False, "implementation accepted a passport missing required schema_version field")
 
 
+def dispatch_verify_signature(impl, vec: dict) -> TestResult:
+    """Verify an Ed25519 signature on a single passport."""
+    verify_signature = getattr(impl, "verify_signature", None)
+    if verify_signature is None:
+        return TestResult(
+            False,
+            "implementation does not expose verify_signature() — required for Signed conformance"
+        )
+    passport = vec["input"]["passport"]
+    expected = vec["expected"]["result"]
+    try:
+        actual = verify_signature(passport)
+    except Exception as e:
+        return TestResult(False, f"impl.verify_signature raised: {e!r}")
+    if bool(actual) != bool(expected):
+        return TestResult(False, f"expected verify_signature={expected}, got {actual}")
+    return TestResult(True)
+
+
+def dispatch_verify_signature_pair_consistency(impl, vec: dict) -> TestResult:
+    """
+    Both passports must verify to the same result. They differ only in key
+    ordering, so a canonicalizing verifier should give them identical outcomes.
+    """
+    verify_signature = getattr(impl, "verify_signature", None)
+    if verify_signature is None:
+        return TestResult(
+            False,
+            "implementation does not expose verify_signature() — required for Signed conformance"
+        )
+    a = vec["input"]["passport_a"]
+    b = vec["input"]["passport_b"]
+    expected = vec["expected"]["result"]
+    try:
+        ra = verify_signature(a)
+        rb = verify_signature(b)
+    except Exception as e:
+        return TestResult(False, f"impl.verify_signature raised: {e!r}")
+    if bool(ra) != bool(rb):
+        return TestResult(False, f"inconsistent canonicalization: a={ra}, b={rb}")
+    if bool(ra) != bool(expected):
+        return TestResult(False, f"expected both={expected}, got a={ra}, b={rb}")
+    return TestResult(True)
+
+
 DISPATCHERS: dict[str, Callable[..., TestResult]] = {
-    "verify_chain":            dispatch_verify_chain,
-    "compare_payload_hashes":  dispatch_compare_payload_hashes,
-    "parse_should_reject":     dispatch_parse_should_reject,
+    "verify_chain":                         dispatch_verify_chain,
+    "compare_payload_hashes":               dispatch_compare_payload_hashes,
+    "parse_should_reject":                  dispatch_parse_should_reject,
+    "verify_signature":                     dispatch_verify_signature,
+    "verify_signature_pair_consistency":    dispatch_verify_signature_pair_consistency,
 }
 
 
@@ -139,6 +189,7 @@ def run_level(impl, level: str) -> tuple[int, int]:
 
 
 def main() -> int:
+    global VECTORS
     parser = argparse.ArgumentParser(description="Context Passport conformance runner.")
     parser.add_argument(
         "--implementation",
@@ -151,7 +202,23 @@ def main() -> int:
         default="core",
         help="Conformance level (default: core).",
     )
+    parser.add_argument(
+        "--vectors-dir",
+        default=None,
+        help="Path to the conformance-tests vectors/ directory. Required when this runner is installed via pip from PyPI; not needed when running from a git checkout.",
+    )
     args = parser.parse_args()
+
+    if args.vectors_dir:
+        VECTORS = Path(args.vectors_dir).resolve()
+    if not VECTORS.exists():
+        print(
+            f"ERROR: vectors directory not found at {VECTORS}.\n"
+            "Pass --vectors-dir <path> pointing at the vectors/ folder "
+            "of a contextpassport/conformance-tests checkout.",
+            file=sys.stderr,
+        )
+        return 2
 
     try:
         impl = importlib.import_module(args.implementation)
