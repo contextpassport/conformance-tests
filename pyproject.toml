@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "context-passport-conformance"
+version = "1.0.0a1"
+description = "Conformance test suite and runner for the Context Passport open standard."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [
+  { name = "Context Passport maintainers" }
+]
+requires-python = ">=3.9"
+keywords = ["context-passport", "conformance", "testing", "ai-agents"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Testing",
+]
+dependencies = []
+
+[project.optional-dependencies]
+reference = ["context-passport>=1.0.0a2"]
+
+[project.scripts]
+context-passport-conformance = "runner.python.run:main"
+
+[project.urls]
+Homepage      = "https://contextpassport.com"
+Specification = "https://github.com/contextpassport/spec"
+Repository    = "https://github.com/contextpassport/conformance-tests"
+Issues        = "https://github.com/contextpassport/conformance-tests/issues"
+
+[tool.setuptools]
+packages = ["runner", "runner.python"]
+include-package-data = true
