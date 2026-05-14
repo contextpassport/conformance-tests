@@ -1,0 +1,47 @@
+{
+  "name": "v01_root_commit",
+  "description": "A valid root passport with no parent. The integrity hash must be sha256(payload_hash + 'root').",
+  "input": {
+    "passport": {
+      "$schema": "https://contextpassport.com/schema/v1.json",
+      "schema_version": "1.0",
+      "id": "ctx_1700000000000_abc123def456",
+      "parent_id": null,
+      "trace_id": null,
+      "branch_key": "main",
+      "created_by": {
+        "agent_id": "agent-1",
+        "agent_name": "Test Agent",
+        "role": null,
+        "provider": null,
+        "model": null
+      },
+      "event": {
+        "type": "commit",
+        "to_agent_id": null,
+        "timestamp": "2026-01-01T00:00:00Z"
+      },
+      "payload": {
+        "input": "hello",
+        "output": "world"
+      },
+      "integrity": {
+        "payload_hash": "sha256:6e8a3afd86dc83df005d39e75ae74e72a52f25ec9f2cea60fe75e89c0f97e174",
+        "parent_hash": null,
+        "integrity_hash": "sha256:9d20879c0d8eaae1f93b73ec88dcb1b6f1e6dd9af46c30049ce4be86d5db9c5a",
+        "verification_status": "valid"
+      },
+      "lineage": {
+        "fork_of": null,
+        "fork_point": null,
+        "lineage_root": null
+      },
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  "expected": {
+    "operation": "verify",
+    "result": "valid",
+    "note": "The integrity_hash and payload_hash values shown are illustrative. Implementations should compute these from the payload and parent and verify they match the stored values."
+  }
+}
