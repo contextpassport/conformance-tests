@@ -1,3 +1,0 @@
-
-[reference]
-context-passport>=1.0.0a2
