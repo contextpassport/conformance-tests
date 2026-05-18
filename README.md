@@ -59,13 +59,39 @@ Implementations under test load the vector, perform the relevant operation, and 
 
 ## Running the suite
 
-A reference test runner in Python is published at `runner/python/run.py`. To run against an implementation:
+### Install the runner
 
 ```bash
-python runner/python/run.py --implementation <module_name>
+pip install context-passport-conformance context-passport
 ```
 
-Implementations in other languages should ship their own runners that load each vector and report pass/fail against `expected`.
+This installs the `context-passport-conformance` CLI plus the reference Python implementation it tests against.
+
+### Run it
+
+From a checkout of this repository:
+
+```bash
+context-passport-conformance --level core
+context-passport-conformance --level signed
+```
+
+If you installed via pip (vectors not next to the runner), point at a vectors directory:
+
+```bash
+git clone https://github.com/contextpassport/conformance-tests.git
+context-passport-conformance --vectors-dir conformance-tests/vectors --level signed
+```
+
+### Test a different implementation
+
+```bash
+context-passport-conformance --implementation <module_name> --level core
+```
+
+The implementation must expose `payload_hash`, `integrity_hash`, `verify_chain`, and (for signed conformance) `verify_signature` with the same signatures as the reference implementation.
+
+Implementations in other languages should ship their own runners that load each vector JSON and report pass/fail against `expected`. The vectors are CC0 — copy them freely.
 
 ## Conformance badge
 
