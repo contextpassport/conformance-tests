@@ -26,11 +26,13 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
-_DEFAULT_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_VECTORS = _DEFAULT_ROOT / "vectors"
+# Vectors travel with the wheel under
+# context_passport_conformance/vectors/ so `pip install
+# context-passport-conformance` is self-sufficient (no side git clone).
+_PACKAGED_VECTORS = Path(__file__).resolve().parent.parent / "vectors"
 
 # Module-level VECTORS is mutated by main() if --vectors-dir is passed.
-VECTORS = _DEFAULT_VECTORS
+VECTORS = _PACKAGED_VECTORS
 
 # ----- vector loading ------------------------------------------------------
 
@@ -205,7 +207,7 @@ def main() -> int:
     parser.add_argument(
         "--vectors-dir",
         default=None,
-        help="Path to the conformance-tests vectors/ directory. Required when this runner is installed via pip from PyPI; not needed when running from a git checkout.",
+        help="Path to an alternate vectors/ directory. Defaults to the vectors shipped inside this distribution; override only when testing against a custom or in-development vector set.",
     )
     args = parser.parse_args()
 
@@ -214,8 +216,9 @@ def main() -> int:
     if not VECTORS.exists():
         print(
             f"ERROR: vectors directory not found at {VECTORS}.\n"
-            "Pass --vectors-dir <path> pointing at the vectors/ folder "
-            "of a contextpassport/conformance-tests checkout.",
+            "If you passed --vectors-dir, check the path. Otherwise the "
+            "packaged vectors are missing — reinstall the conformance "
+            "package or report a packaging bug.",
             file=sys.stderr,
         )
         return 2
@@ -245,12 +248,28 @@ def main() -> int:
 
     total_passed = 0
     total = 0
+    empty_levels: list[str] = []
     for level in levels_to_run:
         p, t = run_level(impl, level)
         total_passed += p
         total += t
+        if t == 0:
+            empty_levels.append(level)
 
     print(f"Summary: {total_passed}/{total} vectors passed")
+
+    # A requested level with zero vectors must not silently green-tick.
+    # The classic case is `--level full` against a vector set that has no
+    # recommended/ directory yet.
+    if empty_levels:
+        print(
+            f"ERROR: requested level '{args.level}' includes the following "
+            f"sub-level(s) with zero vectors: {', '.join(empty_levels)}. "
+            f"This run cannot certify '{args.level}' conformance.",
+            file=sys.stderr,
+        )
+        return 1
+
     return 0 if total_passed == total and total > 0 else 1
 
 
