@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "context-passport-conformance"
-version = "1.0.0a1"
+version = "1.0.0"
 description = "Conformance test suite and runner for the Context Passport open standard."
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -23,7 +23,7 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-reference = ["context-passport>=1.0.0a2"]
+reference = ["context-passport>=1.0.0"]
 
 [project.scripts]
 context-passport-conformance = "runner.python.run:main"
