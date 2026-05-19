@@ -56,50 +56,50 @@ failed=0
 failures=()
 
 # Test 1: payload_hash byte equivalence on a curated set of payloads
-PAYLOADS=$(cat <<'EOF'
-[
-  {"name":"simple_string",        "payload": {"input": "hello", "output": "world"}},
-  {"name":"nested_object",        "payload": {"input": {"a":1,"b":{"c":2,"d":3}}, "output": "x"}},
-  {"name":"key_order_swap",       "payload": {"output":"x", "input":"y"}},
-  {"name":"array_with_mixed",     "payload": {"data": [1,"two",true,null,{"k":"v"}]}},
-  {"name":"empty_object",         "payload": {}},
-  {"name":"empty_string",         "payload": {"input": "", "output": ""}},
-  {"name":"unicode_basic",        "payload": {"name":"François","city":"München"}},
-  {"name":"unicode_emoji",        "payload": {"msg":"hello 👋 world 🌍"}},
-  {"name":"integer_zero",         "payload": {"count": 0}},
-  {"name":"large_integer",        "payload": {"id": 12345678901234567}},
-  {"name":"deeply_nested",        "payload": {"a":{"b":{"c":{"d":{"e":{"f":"deep"}}}}}}}
-]
-EOF
-)
+PAYLOADS_FILE="${SCRIPT_DIR}/payloads.json"
+# Convert to native path on Windows/MSYS so Python/Node can open it.
+if command -v cygpath >/dev/null 2>&1; then
+  PAYLOADS_FILE="$(cygpath -w "$PAYLOADS_FILE")"
+fi
 
-run_python() {
-  local payload="$1"
-  python -c "
-import json, sys
+run_python_case() {
+  local case_name="$1"
+  PAYLOADS_FILE="$PAYLOADS_FILE" CASE_NAME="$case_name" python -c "
+import json, os
 from context_passport import payload_hash
-p = json.loads(sys.argv[1])
-print(payload_hash(p))" "$payload"
+with open(os.environ['PAYLOADS_FILE'], encoding='utf-8') as f:
+    cases = json.load(f)
+for c in cases:
+    if c['name'] == os.environ['CASE_NAME']:
+        print(payload_hash(c['payload']))
+        break
+"
 }
 
-run_node() {
-  local payload="$1"
-  node -e "
-import('@contextpassport/core').then(m => {
-  const p = JSON.parse(process.argv[1]);
-  process.stdout.write(m.payloadHash(p) + '\n');
-}).catch(e => { console.error(e); process.exit(1); });" "$payload"
+run_node_case() {
+  local case_name="$1"
+  PAYLOADS_FILE="$PAYLOADS_FILE" CASE_NAME="$case_name" node -e "
+import('@contextpassport/core').then(async m => {
+  const fs = await import('node:fs');
+  const cases = JSON.parse(fs.readFileSync(process.env.PAYLOADS_FILE, 'utf8'));
+  const c = cases.find(x => x.name === process.env.CASE_NAME);
+  process.stdout.write(m.payloadHash(c.payload) + '\n');
+}).catch(e => { console.error(e); process.exit(1); });"
 }
 
 echo "test: payload_hash equivalence"
-echo "$PAYLOADS" | python -c "
-import json, sys
-for case in json.load(sys.stdin):
-    print(case['name'] + '|' + json.dumps(case['payload']))
-" | while IFS='|' read -r name payload; do
+case_names=$(PAYLOADS_FILE="$PAYLOADS_FILE" python -c "
+import json, os
+with open(os.environ['PAYLOADS_FILE'], encoding='utf-8') as f:
+    for c in json.load(f):
+        print(c['name'])
+")
+while IFS= read -r name; do
+  name="${name%$'\r'}"  # strip trailing CR on Windows
+  [[ -z "$name" ]] && continue
   total=$((total + 1))
-  py_hash=$(run_python "$payload")
-  ts_hash=$(run_node "$payload")
+  py_hash=$(run_python_case "$name")
+  ts_hash=$(run_node_case "$name")
   if [[ "$py_hash" == "$ts_hash" ]]; then
     echo "  PASS  $name"
     passed=$((passed + 1))
@@ -110,7 +110,7 @@ for case in json.load(sys.stdin):
     failed=$((failed + 1))
     failures+=("$name")
   fi
-done
+done <<< "$case_names"
 
 # Test 2: signed vector v07 verifies in both implementations
 echo ""

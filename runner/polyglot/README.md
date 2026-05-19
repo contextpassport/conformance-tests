@@ -9,40 +9,33 @@ This is the load-bearing test for whether Context Passport is portable across im
 Requires both reference implementations installed in the current environment:
 
 ```bash
-pip install context-passport
-npm install @contextpassport/core   # in the cwd
+pip install "context-passport>=2.0"
+npm install @contextpassport/core@^2.0   # in the cwd
 bash runner/polyglot/run.sh
 ```
 
 Exit 0 on full equivalence, exit 1 if any payload diverges.
 
-## Known divergences (as of v1.0)
+## Status (v2.0)
 
-The current Python and TypeScript implementations both use their native `JSON` serializers with sorted keys. This produces byte-equivalent output for most payload shapes (strings without non-ASCII, integers within `Number.MAX_SAFE_INTEGER`, all nested object shapes, arrays of mixed primitives) but diverges in three cases:
+Under v2.0 (RFC 8785 / JCS canonicalization), all 11 payload vectors pass in both implementations, including non-ASCII strings and emoji. The signed `v07_ed25519_valid.json` vector verifies cross-impl.
 
-1. **Non-ASCII characters.** Python's `json.dumps` defaults to `ensure_ascii=True` (escapes `ç` to `ç`). Node's `JSON.stringify` keeps the raw UTF-8 byte. Different serialized bytes → different hash.
-2. **Emoji and multi-byte Unicode.** Same root cause as above.
-3. **Integers larger than 2^53 − 1.** JavaScript silently loses precision (numbers past `Number.MAX_SAFE_INTEGER` get rounded). Python preserves the full integer. Different number → different hash.
+The original v1.x harness documented three known divergences:
 
-These divergences are tracked as the canonical-JSON gap. The fix is to adopt RFC 8785 (JSON Canonicalization Scheme) as the spec-mandated canonicalization algorithm. See SPEC.md §3.4 and any open issue tagged `rfc-8785`.
-
-Until the fix lands, applications that need cross-implementation portability MUST avoid non-ASCII characters in payloads and MUST keep all integer values within the JavaScript safe-integer range (-(2^53 − 1) through 2^53 − 1).
+1. **Non-ASCII characters** — closed by JCS (raw UTF-8 emission, no `\uXXXX` escapes).
+2. **Emoji / multi-byte Unicode** — closed by JCS (same fix).
+3. **Integers larger than 2^53 − 1** — *not* closed by JCS. This is a fundamental limit of the JavaScript `Number` type, not of the canonicalization algorithm. Applications that need arbitrary-precision integers across implementations must encode them as strings or BigInts in the payload. The v2.0 vector set uses `safe_integer_max` (`9007199254740991`, exactly 2^53 − 1) as the upper bound and documents this constraint in SPEC.md §3.4.
 
 ## Vector coverage
 
-The script tests:
-
-- 11 hand-crafted payload shapes covering simple strings, nested objects, key-order variants, mixed arrays, empty values, Unicode, integers at various magnitudes, deeply nested objects.
-- The `signed/v07_ed25519_valid.json` vector verifies in both implementations (currently passes — the vector uses an ASCII-only payload so the Unicode bug does not surface).
-
-When the canonical-JSON fix lands, the 3 currently-failing payload tests must go green and the harness as a whole must exit 0.
+The script tests 11 hand-crafted payload shapes (`payloads.json`) covering simple strings, nested objects, key-order variants, mixed arrays, empty values, Unicode, emoji, integers at safe-range bounds, and deeply nested objects. Plus the signed v07 vector for cross-impl signature verification.
 
 ## CI integration
 
 Suitable for a GitHub Actions matrix that runs on every push to either reference SDK:
 
 ```yaml
-- run: pip install context-passport
-- run: npm install @contextpassport/core
+- run: pip install "context-passport>=2.0"
+- run: npm install @contextpassport/core@^2.0
 - run: bash runner/polyglot/run.sh
 ```

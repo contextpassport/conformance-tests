@@ -1,0 +1,13 @@
+[
+  {"name": "simple_string",    "payload": {"input": "hello", "output": "world"}},
+  {"name": "nested_object",    "payload": {"input": {"a": 1, "b": {"c": 2, "d": 3}}, "output": "x"}},
+  {"name": "key_order_swap",   "payload": {"output": "x", "input": "y"}},
+  {"name": "array_with_mixed", "payload": {"data": [1, "two", true, null, {"k": "v"}]}},
+  {"name": "empty_object",     "payload": {}},
+  {"name": "empty_string",     "payload": {"input": "", "output": ""}},
+  {"name": "unicode_basic",    "payload": {"name": "François", "city": "München"}},
+  {"name": "unicode_emoji",    "payload": {"msg": "hello 👋 world 🌍"}},
+  {"name": "integer_zero",     "payload": {"count": 0}},
+  {"name": "safe_integer_max", "payload": {"id": 9007199254740991}},
+  {"name": "deeply_nested",    "payload": {"a": {"b": {"c": {"d": {"e": {"f": "deep"}}}}}}}
+]
