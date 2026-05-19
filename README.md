@@ -1,40 +1,82 @@
 # Context Passport Conformance Tests
 
-The test suite that any Context Passport implementation can run against to verify v1.0 conformance.
+The test suite that any Context Passport implementation can run against to verify v2.0 conformance.
 
 **Specification:** https://github.com/contextpassport/spec
 
 ## Licensing
 
-- **Test vectors** (everything under `vectors/`) — CC0 1.0. See `LICENSE-CC0`. Free to use, modify, redistribute.
-- **Runner code** (everything under `runner/`) — Apache-2.0. See `LICENSE-APACHE`.
+- **Test vectors** (everything under `src/context_passport_conformance/vectors/`) — CC0 1.0. See `LICENSE-CC0`. Free to use, modify, redistribute.
+- **Runner code** — Apache-2.0. See `LICENSE-APACHE`.
 
 ## What conformance means
 
-An implementation is **Context Passport v1.0 conformant** if it passes every test in `vectors/required/`. Implementations may additionally pass tests in `vectors/signed/` or `vectors/recommended/` to claim stronger conformance levels.
+An implementation is **Context Passport v2.0 conformant** if it passes every vector at a given level. v2.0 adopts RFC 8785 (JCS) as the canonical-JSON algorithm; the vectors verify byte-equivalent hashing across implementations.
 
 ## Conformance levels
 
 | Level | Requirements |
 |---|---|
-| **Core** | All vectors in `vectors/required/` pass. The implementation can produce and consume passports that validate against `schema/v1.json` and compute integrity hashes correctly. |
-| **Signed** | Core, plus all vectors in `vectors/signed/` pass. The implementation produces signed passports (SPEC.md section 3.2.7) and verifies signatures correctly. |
-| **Full** | Signed, plus all vectors in `vectors/recommended/` pass. The implementation handles fork/merge lineage, extension namespacing, and forward compatibility correctly. |
+| **Core** | All vectors in `vectors/required/` pass. The implementation produces and consumes passports that validate against `schema/v2.json` and compute integrity hashes correctly under RFC 8785. |
+| **Signed** | Core, plus all vectors in `vectors/signed/` pass. Ed25519 signing per SPEC.md §3.2.7 is implemented and verifies correctly. |
+| **Full** | Signed, plus all vectors in `vectors/recommended/` pass. Handles fork/merge lineage, extension namespacing, and forward compatibility. (No recommended vectors are published yet — `--level full` currently exits 1 to prevent silent green-ticking.) |
+
+## Running the suite
+
+### Install
+
+```bash
+pip install "context-passport-conformance[reference]"
+```
+
+The `[reference]` extra also pulls in `context-passport>=2.0.0` (the default implementation under test). For other languages, install the package without extras and use `--implementation <module_name>`.
+
+### Run it
+
+```bash
+context-passport-conformance --level core      # 6/6
+context-passport-conformance --level signed    # 9/9
+```
+
+The vectors travel inside the wheel, so no `--vectors-dir` flag and no git clone are required for the default suite. Use `--vectors-dir <path>` only to test against a custom or in-development vector set.
+
+### Polyglot harness
+
+The polyglot byte-equivalence harness lives at `runner/polyglot/run.sh`. It exercises the same payloads through the Python and TypeScript reference SDKs and confirms identical hashes — the load-bearing test for cross-implementation portability. Requires both SDKs installed:
+
+```bash
+pip install context-passport
+npm install @contextpassport/core
+bash runner/polyglot/run.sh
+```
+
+11/11 vectors pass under v2.0.
+
+### Test a different implementation
+
+```bash
+context-passport-conformance --implementation <module_name> --level core
+```
+
+The implementation must expose `payload_hash`, `integrity_hash`, `verify_chain`, and (for signed conformance) `verify_signature` with the same signatures as the reference SDK.
+
+Implementations in other languages should ship their own runners that load each vector JSON and report pass/fail against `expected`. The vectors are CC0 — copy them freely.
 
 ## Vector format
 
-Each test vector is a JSON file with three sections:
+Each test vector is a JSON file:
 
 ```json
 {
   "name": "v01_root_commit",
   "description": "A valid root passport with no parent.",
-  "input": { ... passport or chain to be evaluated ... },
-  "expected": { ... expected verification result ... }
+  "operation": "verify_chain",
+  "input": { "passports": [ ... ] },
+  "expected": { "result": true }
 }
 ```
 
-Implementations under test load the vector, perform the relevant operation, and compare output against `expected`.
+Supported `operation` values: `verify_chain`, `compare_payload_hashes`, `parse_should_reject`, `verify_signature`, `verify_signature_pair_consistency`.
 
 ## Required vectors (Core)
 
@@ -51,57 +93,15 @@ Implementations under test load the vector, perform the relevant operation, and 
 8. `v08_ed25519_tampered.json` — Modified payload fails signature verification.
 9. `v09_signature_canonicalization.json` — Signature is over canonical bytes with signature field cleared.
 
-## Recommended vectors
-
-10. `v10_fork_lineage.json` — Fork populates lineage fields.
-11. `v11_event_types.json` — All event types accepted.
-12. `v12_long_chain.json` — 100-commit chain verifies.
-
-## Running the suite
-
-### Install the runner
-
-```bash
-pip install context-passport-conformance context-passport
-```
-
-This installs the `context-passport-conformance` CLI plus the reference Python implementation it tests against.
-
-### Run it
-
-From a checkout of this repository:
-
-```bash
-context-passport-conformance --level core
-context-passport-conformance --level signed
-```
-
-If you installed via pip (vectors not next to the runner), point at a vectors directory:
-
-```bash
-git clone https://github.com/contextpassport/conformance-tests.git
-context-passport-conformance --vectors-dir conformance-tests/vectors --level signed
-```
-
-### Test a different implementation
-
-```bash
-context-passport-conformance --implementation <module_name> --level core
-```
-
-The implementation must expose `payload_hash`, `integrity_hash`, `verify_chain`, and (for signed conformance) `verify_signature` with the same signatures as the reference implementation.
-
-Implementations in other languages should ship their own runners that load each vector JSON and report pass/fail against `expected`. The vectors are CC0 — copy them freely.
-
 ## Conformance badge
 
 Implementations that pass all required vectors may self-declare:
 
 ```
-Context Passport v1.0 Core Conformant
+Context Passport v2.0 Core Conformant
 ```
 
-This is self-attestation. Independent verification is encouraged but not required.
+Implementations that also pass signed vectors may declare `Signed Conformant`. This is self-attestation. Independent verification is encouraged but not required.
 
 ## Contributing
 
