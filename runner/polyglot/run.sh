@@ -6,9 +6,11 @@
 # than portable.
 #
 # Requires:
-#   - python with context-passport installed (pip install context-passport)
+#   - python with context-passport and its signing extra installed
+#     (pip install "context-passport[signing]"). The signing extra is not
+#     optional here: test 2 verifies a signed vector in both implementations,
+#     and plain context-passport raises ImportError on that path.
 #   - node with @contextpassport/core installed (npm install @contextpassport/core)
-#   - jq (for JSON comparison)
 #
 # Usage:
 #   bash runner/polyglot/run.sh [--vectors-dir <dir>]
@@ -39,7 +41,16 @@ if ! command -v node >/dev/null 2>&1; then
   echo "ERROR: node not on PATH" >&2; exit 2
 fi
 if ! python -c "import context_passport" 2>/dev/null; then
-  echo "ERROR: context-passport not installed. pip install context-passport" >&2; exit 2
+  echo "ERROR: context-passport not installed. pip install \"context-passport[signing]\"" >&2
+  exit 2
+fi
+# Check the signing path up front rather than letting test 2 die halfway
+# through with an ImportError traceback. A precondition that passes and then
+# crashes the run is worse than one that never passed.
+if ! python -c "import context_passport.signing" 2>/dev/null; then
+  echo "ERROR: context-passport is installed without its signing extra, which" >&2
+  echo "       test 2 requires. pip install \"context-passport[signing]\"" >&2
+  exit 2
 fi
 if ! node -e "import('@contextpassport/core').then(()=>process.exit(0)).catch(()=>process.exit(1))" 2>/dev/null; then
   echo "ERROR: @contextpassport/core not installed in cwd. npm install @contextpassport/core" >&2
