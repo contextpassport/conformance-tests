@@ -1,0 +1,54 @@
+name: Conformance
+
+# This suite is the only artifact that proves Context Passport is portable
+# rather than implementation-defined. Two reference implementations agreeing
+# on paper is not evidence. Agreeing on bytes, on every push, is.
+#
+# Both jobs run against the published packages rather than a local checkout,
+# because what implementers actually install is what has to be correct.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 6 * * 1'   # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+jobs:
+  vectors:
+    name: Reference vectors (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install -e ".[reference]"
+
+      - run: python -m context_passport_conformance.python.run
+
+  polyglot:
+    name: Python and TypeScript produce identical bytes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The signing extra is required here, not optional. The suite verifies
+      # signed vector v07 in both implementations, and plain context-passport
+      # raises ImportError on that path rather than skipping it.
+      - run: pip install "context-passport[signing]"
+
+      - run: npm install @contextpassport/core
+
+      - run: bash runner/polyglot/run.sh
