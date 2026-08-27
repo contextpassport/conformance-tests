@@ -26,9 +26,16 @@ jobs:
         with:
           python-version: '3.12'
 
-      - run: pip install -e ".[reference]"
+      # The signing extra is required for the signed vectors below. The
+      # [reference] extra pulls plain context-passport, which raises
+      # ImportError on the Ed25519 path rather than skipping it.
+      - run: pip install -e ".[reference]" "context-passport[signing]"
 
-      - run: python -m context_passport_conformance.python.run
+      # --level signed, not the core default. Core runs 6 of the 9 published
+      # vectors and leaves v07 to v09 untouched, so signing regressions would
+      # pass CI silently. There is no --level full yet, by design: the runner
+      # exits 1 there to prevent green-ticking a level with no vectors.
+      - run: python -m context_passport_conformance.python.run --level signed
 
   polyglot:
     name: Python and TypeScript produce identical bytes
