@@ -1,0 +1,34 @@
+{
+  "name": "v10_utf16_key_order",
+  "description": "Object keys MUST be sorted by UTF-16 code unit, per RFC 8785 section 3.2.3, not by Unicode code point. The two orders agree across the whole BMP and disagree above it: U+1F600 encodes to the surrogate pair D83D DE00, so it sorts below U+FF01 in UTF-16 and above it by code point. An implementation using code-point order still produces equal hashes for both payloads below, so the expected hash is what distinguishes it, not the equality.",
+  "operation": "compare_payload_hashes",
+  "input": {
+    "payload_a": {
+      "agent": "reviewer",
+      "😀": "astral key",
+      "！": "fullwidth key",
+      "é": "latin-1 key",
+      "nested": {
+        "🚀": 1,
+        "�": 2,
+        "z": 3
+      }
+    },
+    "payload_b": {
+      "nested": {
+        "z": 3,
+        "�": 2,
+        "🚀": 1
+      },
+      "é": "latin-1 key",
+      "！": "fullwidth key",
+      "😀": "astral key",
+      "agent": "reviewer"
+    }
+  },
+  "expected": {
+    "result": "equal",
+    "hash": "sha256:dc0a469dba56cca8cd128d0b2ce8a968bfd447005ad67659eac9c060001d2334",
+    "note": "Correct UTF-16 ordering places the astral keys before the BMP ones: U+1F600 before U+FF01, and U+1F680 before U+FFFD in the nested object. Python's sorted() and json.dumps(sort_keys=True) order by code point and will produce a different hash here; JavaScript's Array.prototype.sort is already UTF-16. This vector exists because the two reference SDKs disagreed on exactly this input and no other vector contains a character outside the BMP."
+  }
+}
