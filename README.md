@@ -86,12 +86,13 @@ Supported `operation` values: `verify_chain`, `compare_payload_hashes`, `parse_s
 4. `v04_broken_chain.json` — Tampered payload is detected.
 5. `v05_schema_version.json` — Missing `schema_version` is rejected.
 6. `v06_unknown_extension.json` — Unknown namespaced field is accepted and ignored.
+7. `v10_utf16_key_order.json` — Keys sort by UTF-16 code unit, not code point.
 
 ## Signed vectors
 
-7. `v07_ed25519_valid.json` — Valid Ed25519 signature verifies.
-8. `v08_ed25519_tampered.json` — Modified payload fails signature verification.
-9. `v09_signature_canonicalization.json` — Signature is over canonical bytes with signature field cleared.
+8. `v07_ed25519_valid.json` — Valid Ed25519 signature verifies.
+9. `v08_ed25519_tampered.json` — Modified payload fails signature verification.
+10. `v09_signature_canonicalization.json` — Signature is over canonical bytes with signature field cleared.
 
 ## Conformance badge
 
